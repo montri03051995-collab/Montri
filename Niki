@@ -1,0 +1,107 @@
+local Players = game:GetService("Players")
+local ServerStorage = game:GetService("ServerStorage")
+
+local map = Instance.new("Folder")
+map.Name = "WeaponArenaMap"
+map.Parent = workspace
+
+local function makePart(name, size, position, color)
+    local part = Instance.new("Part")
+    part.Name = name
+    part.Size = size
+    part.Position = position
+    part.Anchored = true
+    part.Color = color
+    part.Parent = map
+    return part
+end
+
+-- พื้นแมพ
+makePart("MainGround", Vector3.new(180, 2, 180),
+    Vector3.new(0, -1, 0), Color3.fromRGB(75, 145, 75))
+
+-- ฐานผู้เล่น
+makePart("PlayerBase", Vector3.new(24, 2, 24),
+    Vector3.new(-45, 1, 0), Color3.fromRGB(60, 140, 255))
+
+-- อารีน่า
+makePart("ArenaFloor", Vector3.new(50, 2, 50),
+    Vector3.new(45, 1, 0), Color3.fromRGB(180, 70, 70))
+
+-- จุดเข้าอารีน่า
+local arenaSpawn = makePart("ArenaSpawn",
+    Vector3.new(6, 1, 6), Vector3.new(45, 3, 0),
+    Color3.fromRGB(255, 220, 50))
+arenaSpawn.Transparency = 0.4
+arenaSpawn.CanCollide = false
+
+-- จุด NPC
+local npcPart = makePart("WeaponNPC",
+    Vector3.new(4, 6, 4), Vector3.new(-10, 3, 0),
+    Color3.fromRGB(255, 170, 50))
+
+local prompt = Instance.new("ProximityPrompt")
+prompt.ActionText = "ขโมยอาวุธ"
+prompt.ObjectText = "อาวุธ NPC"
+prompt.HoldDuration = 1
+prompt.MaxActivationDistance = 10
+prompt.Parent = npcPart
+
+-- สร้างอาวุธตัวอย่าง
+local weaponsFolder = ServerStorage:FindFirstChild("Weapons")
+if not weaponsFolder then
+    weaponsFolder = Instance.new("Folder")
+    weaponsFolder.Name = "Weapons"
+    weaponsFolder.Parent = ServerStorage
+end
+
+if not weaponsFolder:FindFirstChild("Sword") then
+    local sword = Instance.new("Tool")
+    sword.Name = "Sword"
+    sword.RequiresHandle = true
+
+    local handle = Instance.new("Part")
+    handle.Name = "Handle"
+    handle.Size = Vector3.new(1, 4, 1)
+    handle.Color = Color3.fromRGB(180, 180, 190)
+    handle.Parent = sword
+
+    sword.Parent = weaponsFolder
+end
+
+local claimed = false
+
+prompt.Triggered:Connect(function(player)
+    if claimed then return end
+
+    local character = player.Character
+    if not character then return end
+
+    local root = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local backpack = player:FindFirstChildOfClass("Backpack")
+
+    if not root or not humanoid or humanoid.Health <= 0
+        or not backpack then
+        return
+    end
+
+    if (root.Position - npcPart.Position).Magnitude > 12 then
+        return
+    end
+
+    local sword = weaponsFolder:FindFirstChild("Sword")
+    if not sword then return end
+
+    claimed = true
+    prompt.Enabled = false
+
+    sword:Clone().Parent = backpack
+
+    task.wait(0.5)
+
+    if player.Character == character
+        and humanoid.Health > 0 then
+        character:PivotTo(arenaSpawn.CFrame * CFrame.new(0, 4, 0))
+    end
+end)

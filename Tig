@@ -1,0 +1,264 @@
+
+-- My first | Neon Blue Arena UI
+-- วางใน StarterPlayer > StarterPlayerScripts > LocalScript
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- ตั้งค่า
+local PICKUP_DISTANCE = 10
+local CHECK_INTERVAL = 0.5
+local PICKUP_COOLDOWN = 2
+
+local systemEnabled = true
+local autoPickup = false
+local minimized = false
+local lastPickup = {}
+
+local BLUE = Color3.fromRGB(0, 220, 255)
+local DARK = Color3.fromRGB(10, 18, 32)
+local PANEL = Color3.fromRGB(16, 31, 49)
+local WHITE = Color3.fromRGB(240, 250, 255)
+
+-- ลบ UI เก่าถ้ามี
+local oldGui = playerGui:FindFirstChild("MyFirstUI")
+if oldGui then
+    oldGui:Destroy()
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "MyFirstUI"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = false
+gui.Parent = playerGui
+
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.Size = UDim2.new(0, 285, 0, 355)
+main.Position = UDim2.new(0.5, -142, 0.5, -177)
+main.BackgroundColor3 = DARK
+main.BorderSizePixel = 0
+main.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 14)
+corner.Parent = main
+
+local outline = Instance.new("UIStroke")
+outline.Color = BLUE
+outline.Thickness = 2
+outline.Parent = main
+
+local function makeLabel(parent, text, size, position)
+    local label = Instance.new("TextLabel")
+    label.Size = size
+    label.Position = position
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = WHITE
+    label.Font = Enum.Font.GothamBold
+    label.TextScaled = true
+    label.Parent = parent
+    return label
+end
+
+local title = makeLabel(
+    main, "MY FIRST | ARENA",
+    UDim2.new(1, -85, 0, 42),
+    UDim2.new(0, 12, 0, 5)
+)
+title.TextColor3 = BLUE
+
+local function makeButton(text, y)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, -24, 0, 42)
+    button.Position = UDim2.new(0, 12, 0, y)
+    button.BackgroundColor3 = PANEL
+    button.TextColor3 = WHITE
+    button.Text = text
+    button.TextSize = 15
+    button.Font = Enum.Font.GothamBold
+    button.AutoButtonColor = true
+    button.Parent = main
+
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, 9)
+    c.Parent = button
+
+    local s = Instance.new("UIStroke")
+    s.Color = BLUE
+    s.Thickness = 1
+    s.Parent = button
+
+    return button
+end
+
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Size = UDim2.new(0, 32, 0, 32)
+minimizeButton.Position = UDim2.new(1, -40, 0, 9)
+minimizeButton.Text = "−"
+minimizeButton.TextSize = 24
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.TextColor3 = BLUE
+minimizeButton.BackgroundColor3 = PANEL
+minimizeButton.Parent = main
+
+local mc = Instance.new("UICorner")
+mc.CornerRadius = UDim.new(0, 8)
+mc.Parent = minimizeButton
+
+local status = makeLabel(
+    main, "สถานะ: พร้อมใช้งาน",
+    UDim2.new(1, -24, 0, 28),
+    UDim2.new(0, 12, 0, 320)
+)
+status.TextColor3 = BLUE
+status.TextSize = 12
+
+local autoButton = makeButton("เก็บอาวุธอัตโนมัติ: ปิด", 55)
+local arenaButton = makeButton("เข้าอารีน่า", 104)
+local baseButton = makeButton("กลับฐาน", 153)
+local systemButton = makeButton("ระบบหลัก: เปิด", 202)
+local infoButton = makeButton("ตรวจสอบการเชื่อมต่อ", 251)
+
+local function setStatus(message)
+    status.Text = "สถานะ: " .. message
+end
+
+-- RemoteEvents ที่เกมของคุณต้องสร้างไว้
+local actions = ReplicatedStorage:FindFirstChild("GameActions")
+
+local function getRemote(name)
+    if not actions then
+        return nil
+    end
+
+    local remote = actions:FindFirstChild(name)
+    if remote and remote:IsA("RemoteEvent") then
+        return remote
+    end
+
+    return nil
+end
+
+autoButton.Activated:Connect(function()
+    autoPickup = not autoPickup
+
+    autoButton.Text = "เก็บอาวุธอัตโนมัติ: "
+        .. (autoPickup and "เปิด" or "ปิด")
+
+    setStatus(autoPickup and "เปิดเก็บอาวุธ" or "ปิดเก็บอาวุธ")
+end)
+
+arenaButton.Activated:Connect(function()
+    if not systemEnabled then
+        setStatus("กรุณาเปิดระบบหลักก่อน")
+        return
+    end
+
+    local remote = getRemote("EnterArena")
+    if remote then
+        remote:FireServer()
+        setStatus("ส่งคำขอเข้าอารีน่าแล้ว")
+    else
+        setStatus("ไม่พบ Remote: EnterArena")
+    end
+end)
+
+baseButton.Activated:Connect(function()
+    local remote = getRemote("ReturnBase")
+    if remote then
+        remote:FireServer()
+        setStatus("ส่งคำขอกลับฐานแล้ว")
+    else
+        setStatus("ไม่พบ Remote: ReturnBase")
+    end
+end)
+
+systemButton.Activated:Connect(function()
+    systemEnabled = not systemEnabled
+    systemButton.Text = "ระบบหลัก: "
+        .. (systemEnabled and "เปิด" or "ปิด")
+
+    setStatus(systemEnabled and "เปิดระบบแล้ว" or "ปิดระบบแล้ว")
+end)
+
+infoButton.Activated:Connect(function()
+    if actions
+        and getRemote("EnterArena")
+        and getRemote("ReturnBase")
+        and getRemote("PickupWeapon") then
+        setStatus("พบ RemoteEvents ครบ")
+    else
+        setStatus("ต้องตั้งค่า GameActions")
+    end
+end)
+
+minimizeButton.Activated:Connect(function()
+    minimized = not minimized
+
+    autoButton.Visible = not minimized
+    arenaButton.Visible = not minimized
+    baseButton.Visible = not minimized
+    systemButton.Visible = not minimized
+    infoButton.Visible = not minimized
+    status.Visible = not minimized
+
+    main.Size = minimized
+        and UDim2.new(0, 285, 0, 50)
+        or UDim2.new(0, 285, 0, 355)
+
+    minimizeButton.Text = minimized and "+" or "−"
+end)
+
+-- ตรวจหาอาวุธใกล้ตัว
+-- เซิร์ฟเวอร์ต้องตรวจสอบระยะและสิทธิ์เก็บซ้ำเสมอ
+task.spawn(function()
+    while gui.Parent do
+        task.wait(CHECK_INTERVAL)
+
+        if not systemEnabled or not autoPickup then
+            continue
+        end
+
+        local character = player.Character
+        local root = character
+            and character:FindFirstChild("HumanoidRootPart")
+
+        local weapons = Workspace:FindFirstChild("Weapons")
+        local remote = getRemote("PickupWeapon")
+
+        if not root or not weapons or not remote then
+            continue
+        end
+
+        for _, item in ipairs(weapons:GetChildren()) do
+            local part
+
+            if item:IsA("BasePart") then
+                part = item
+            elseif item:IsA("Model") then
+                part = item.PrimaryPart
+                    or item:FindFirstChildWhichIsA("BasePart")
+            end
+
+            if part and part:IsDescendantOf(weapons) then
+                local distance = (root.Position - part.Position).Magnitude
+                local last = lastPickup[item] or 0
+
+                if distance <= PICKUP_DISTANCE
+                    and os.clock() - last >= PICKUP_COOLDOWN then
+
+                    lastPickup[item] = os.clock()
+                    remote:FireServer(item)
+                end
+            end
+        end
+    end
+end)
+
+print("My first UI loaded successfully")
